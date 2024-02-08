@@ -1,14 +1,57 @@
-version: '3'
+version: '3.8'
 
 services:
   db:
-    image: postgres:12
+    image: postgres:13  
     environment:
       POSTGRES_DB: northwind
       POSTGRES_USER: northwind_user
       POSTGRES_PASSWORD: thewindisblowing
     volumes:
       - ./dbdata:/var/lib/postgresql/data
-      - ./data/northwind.sql:/docker-entrypoint-initdb.d/northwind.sql
+      - ./data/northwind.sql:/docker-entrypoint-initdb.d/init_northwind.sql  
     ports:
-      - 5432:5432
+      - "5433:5432"
+  airflow-webserver:
+    image: apache/airflow:2.2.0
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://northwind_user:thewindisblowing@db/northwind
+      - AIRFLOW__CORE__FERNET_KEY=3ztbOadhbhyVfhtfnEzHXWIthFbwmToLeY2K6a5a1Bw=
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW_HOME=/opt/airflow
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./airflow_logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    ports:
+      - "8081:8080"
+    depends_on:
+      - db
+    command: webserver
+
+  airflow-scheduler:
+    image: apache/airflow:2.2.0  
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://northwind_user:thewindisblowing@db/northwind
+      - AIRFLOW__CORE__FERNET_KEY=3ztbOadhbhyVfhtfnEzHXWIthFbwmToLeY2K6a5a1Bw=
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW_HOME=/opt/airflow
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./airflow_logs:/opt/airflow/logs  
+      - ./plugins:/opt/airflow/plugins
+    depends_on:
+      - db
+    command: scheduler
+
+  embulk-runner:
+    image: embulk:latest  
+    build:
+      context: .
+      dockerfile: .Dockerfile
+    volumes:
+      - ./embulk_config:/workspace
+    depends_on:
+      - db

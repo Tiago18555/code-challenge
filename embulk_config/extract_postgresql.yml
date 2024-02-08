@@ -1,0 +1,18 @@
+in:
+  type: postgresql
+  host: db 
+  port: 5432
+  user: northwind_user
+  password: thewindisblowing 
+  database: northwind
+  query: |
+    SELECT * FROM {table} WHERE DATE(created_at) = '{{ env.DATE_EXECUTION }}'
+
+out:
+  type: file
+  path_prefix: /workspace/data/postgres/{table}/{{ env.DATE_EXECUTION }}/extracted_
+  sequence_format: '%03d.%t' 
+  file_ext: csv
+  formatter:
+    type: csv
+    header_line: true
